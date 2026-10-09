@@ -1,0 +1,56 @@
+{
+  "search_metadata": {"status": "Success"},
+  "ai_overview": {
+    "page_token": "SAMPLE_PAGE_TOKEN",
+    "serpapi_link": "https://serpapi.com/search.json?engine=google_ai_overview&page_token=SAMPLE_PAGE_TOKEN"
+  },
+  "answer_box": {
+    "title": "Great Wall of China - Wikipedia",
+    "link": "https://en.wikipedia.org/wiki/Great_Wall_of_China",
+    "snippet": "The Great Wall is not visible to the naked eye from the Moon, and it is very difficult to see even from low Earth orbit because it is narrow and similar in colour to the land around it."
+  },
+  "organic_results": [
+    {
+      "position": 1,
+      "title": "Is China's Great Wall Visible from Space? - Scientific American",
+      "link": "https://www.scientificamerican.com/article/is-chinas-great-wall-visible-from-space/",
+      "source": "Scientific American",
+      "snippet": "The wall is only about as wide as a road, so from orbit it is hard to pick out with the naked eye; astronauts say roads and airports are easier to see."
+    },
+    {
+      "position": 2,
+      "title": "Great Wall of China | History, Map, & Facts | Britannica",
+      "link": "https://www.britannica.com/topic/Great-Wall-of-China",
+      "source": "Britannica",
+      "snippet": "The popular claim that the Great Wall can be seen from the Moon is a myth; astronauts in low orbit have generally not been able to see it unaided."
+    },
+    {
+      "position": 3,
+      "title": "NASA - Earth from space",
+      "link": "https://www.nasa.gov/",
+      "source": "NASA",
+      "snippet": "Astronaut photographs taken with long camera lenses can show parts of the Great Wall, but the wall is rarely visible to the naked eye from the space station."
+    },
+    {
+      "position": 4,
+      "title": "Live Science",
+      "link": "https://www.livescience.com/",
+      "source": "Live Science",
+      "snippet": "China's first astronaut, Yang Liwei, said in 2003 that he looked for the Great Wall from orbit and could not see it."
+    }
+  ],
+  "related_questions": [
+    {
+      "question": "Which man-made structures can be seen from space?",
+      "snippet": "From low Earth orbit, large cities at night, airports, highways and big reservoirs are much easier to see than the Great Wall.",
+      "title": "Earth Observatory",
+      "link": "https://earthobservatory.nasa.gov/"
+    },
+    {
+      "question": "Can you see the Great Wall of China from the Moon?",
+      "snippet": "No. From the Moon, about 384,000 km away, no individual human-made structure is visible to the naked eye.",
+      "title": "Great Wall of China - Wikipedia",
+      "link": "https://en.wikipedia.org/wiki/Great_Wall_of_China"
+    }
+  ]
+}

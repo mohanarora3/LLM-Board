@@ -1,0 +1,35 @@
+{
+  "search_metadata": {"status": "Success"},
+  "text_blocks": [
+    {
+      "type": "paragraph",
+      "snippet": "The idea that the Great Wall of China is visible from space is mostly a myth. It cannot be seen from the Moon with the naked eye.",
+      "reference_indexes": [0, 1]
+    },
+    {
+      "type": "heading",
+      "snippet": "From low Earth orbit"
+    },
+    {
+      "type": "paragraph",
+      "snippet": "From the International Space Station, about 400 km up, the wall is very difficult to spot without help because it is narrow and blends into the landscape.",
+      "reference_indexes": [2]
+    },
+    {
+      "type": "paragraph",
+      "snippet": "Cameras with zoom lenses have captured it, and highways, airports and city lights are far easier to see.",
+      "reference_indexes": [3, 4]
+    }
+  ],
+  "references": [
+    {"index": 0, "title": "Great Wall of China | Britannica", "link": "https://www.britannica.com/topic/Great-Wall-of-China", "source": "Britannica"},
+    {"index": 1, "title": "Great Wall of China - Wikipedia", "link": "https://en.wikipedia.org/wiki/Great_Wall_of_China", "source": "Wikipedia"},
+    {"index": 2, "title": "Is China's Great Wall Visible from Space?", "link": "https://www.scientificamerican.com/article/is-chinas-great-wall-visible-from-space/", "source": "Scientific American"},
+    {"index": 3, "title": "NASA", "link": "https://www.nasa.gov/", "source": "NASA"},
+    {"index": 4, "title": "NASA Earth Observatory", "link": "https://earthobservatory.nasa.gov/", "source": "NASA"}
+  ],
+  "related_questions": [
+    {"question": "What can astronauts actually see from the space station?"},
+    {"question": "How long is the Great Wall of China?"}
+  ]
+}

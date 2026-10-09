@@ -1,0 +1,26 @@
+{
+  "search_metadata": {"status": "Success"},
+  "text_blocks": [
+    {
+      "type": "paragraph",
+      "segments": [
+        {"snippet": "Yes, the Great Wall of China can be seen from low Earth orbit with the naked eye under good conditions. ", "citations": [{"reference_index": 0}]},
+        {"snippet": "It is not visible from the Moon, which is far too distant.", "citations": [{"reference_index": 1}]}
+      ]
+    },
+    {
+      "type": "paragraph",
+      "segments": [
+        {"snippet": "Its length of more than 20,000 km is often given as the reason it stands out.", "citations": [{"reference_index": 2}]}
+      ]
+    }
+  ],
+  "references": [
+    {"index": 0, "title": "Can you see the Great Wall from space? - Reddit", "link": "https://www.reddit.com/r/askscience/"},
+    {"index": 1, "title": "Great Wall of China - Wikipedia", "link": "https://en.wikipedia.org/wiki/Great_Wall_of_China"},
+    {"index": 2, "title": "Great Wall facts - Quora", "link": "https://www.quora.com/"}
+  ],
+  "related_questions": [
+    {"question": "Who was the first astronaut to look for the Great Wall from orbit?"}
+  ]
+}

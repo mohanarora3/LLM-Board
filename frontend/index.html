@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panchayat</title>
+  <meta name="description" content="Five AI search engines debate. You get one verdict, with every agreement and dissent shown." />
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/app.css" />
+  <script>
+    try { const t = localStorage.getItem("panchayat.theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Navigation">
+      <div class="sb-head">
+        <a class="brand" href="#/" aria-label="Panchayat home">
+          <img src="assets/logo.svg" alt="" width="28" height="28" />
+          <span class="brand-word">panchayat</span>
+        </a>
+        <button class="icon-btn sb-collapse" id="collapseSidebar" aria-label="Collapse sidebar" data-icon="panel-left"></button>
+      </div>
+
+      <button class="new-thread" id="newThread">
+        <span data-icon="plus"></span><span class="label">New thread</span>
+        <span class="kbd label"><kbd id="modKey">Ctrl</kbd><kbd>K</kbd></span>
+      </button>
+
+      <nav class="sb-nav">
+        <a href="#/" class="sb-link" data-route="home"><span data-icon="search"></span><span class="label">Home</span></a>
+        <a href="#/library" class="sb-link" data-route="library"><span data-icon="library"></span><span class="label">Library</span></a>
+      </nav>
+
+      <div class="sb-section label">Recent</div>
+      <ul class="sb-threads" id="recentThreads"></ul>
+
+      <div class="sb-foot">
+        <div class="status" id="statusBox" aria-live="polite"></div>
+        <button class="icon-btn" id="themeToggle" aria-label="Switch theme" data-icon="moon"></button>
+      </div>
+    </aside>
+
+    <main class="main" id="main">
+      <div class="mock-banner" id="mockBanner" hidden>
+        <span data-icon="flask"></span>
+        <span>Sample mode: answers use bundled sample data, not live search. Add a SerpApi key and turn off <code>PANCHAYAT_MOCK</code> for live answers.</span>
+      </div>
+
+      <button class="icon-btn mobile-menu" id="mobileMenu" aria-label="Open menu" data-icon="menu"></button>
+
+      <!-- Home -->
+      <section class="view home" id="homeView">
+        <div class="home-inner">
+          <h1 class="wordmark">panchayat</h1>
+          <p class="tagline">Five AI search engines debate. You get one verdict.</p>
+
+          <form class="ask" id="homeForm" autocomplete="off">
+            <textarea id="homeInput" rows="2" placeholder="Ask anything…" aria-label="Ask a question" maxlength="500"></textarea>
+            <div class="ask-bar">
+              <div class="ask-left">
+                <label class="pill-select" title="Answer language">
+                  <span data-icon="languages"></span>
+                  <select id="homeLang" aria-label="Language"></select>
+                </label>
+                <div class="council-chip" id="councilChip" title="The five panches"></div>
+              </div>
+              <button class="send" type="submit" aria-label="Ask the panchayat" data-icon="arrow-up"></button>
+            </div>
+          </form>
+
+          <div class="setup" id="setupCard" hidden></div>
+          <div class="suggestions" id="suggestions"></div>
+        </div>
+      </section>
+
+      <!-- Thread -->
+      <section class="view thread" id="threadView" hidden>
+        <header class="thread-head">
+          <div class="thread-title" id="threadTitle"></div>
+          <div class="thread-tools">
+            <button class="ghost-btn" id="copyThread"><span data-icon="copy"></span><span>Copy</span></button>
+            <button class="ghost-btn council-toggle" id="councilToggle" aria-controls="councilPanel" aria-expanded="false"><span data-icon="users"></span><span>Council</span></button>
+          </div>
+        </header>
+        <div class="thread-body">
+          <div class="thread-scroll" id="threadScroll">
+            <div class="turns" id="turns"></div>
+            <div class="composer-spacer"></div>
+          </div>
+          <aside class="council" id="councilPanel" aria-label="Council: who agreed and the sources">
+            <button class="icon-btn council-close" id="councilClose" aria-label="Close council" data-icon="x"></button>
+            <div id="councilContent"></div>
+          </aside>
+        </div>
+        <form class="ask followup" id="followForm" autocomplete="off">
+          <textarea id="followInput" rows="1" placeholder="Ask a follow-up" aria-label="Ask a follow-up" maxlength="500"></textarea>
+          <div class="ask-bar">
+            <div class="ask-left">
+              <label class="pill-select" title="Answer language">
+                <span data-icon="languages"></span>
+                <select id="followLang" aria-label="Language"></select>
+              </label>
+            </div>
+            <button class="send" type="submit" id="followSend" aria-label="Send" data-icon="arrow-up"></button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Library -->
+      <section class="view library" id="libraryView" hidden>
+        <div class="library-inner">
+          <div class="library-head">
+            <h2><span data-icon="library"></span> Library</h2>
+            <input type="search" id="librarySearch" placeholder="Search your threads" aria-label="Search threads" />
+          </div>
+          <ul class="library-list" id="libraryList"></ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+  <div class="scrim" id="scrim" hidden></div>
+  <script type="module" src="assets/app.js"></script>
+</body>
+</html>

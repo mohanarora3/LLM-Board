@@ -1,0 +1,20 @@
+{
+  "search_metadata": {"status": "Success"},
+  "header": "The Great Wall of China is not visible from the Moon, and astronauts say it is extremely hard to see from orbit without a camera.",
+  "text_blocks": [
+    {
+      "type": "list",
+      "snippet": "Key points:",
+      "list": [
+        {"snippet": "Most of the wall is less than 10 metres wide, so it is too narrow to see from very far away.", "reference_indexes": [0]},
+        {"snippet": "Yang Liwei, China's first astronaut, reported in 2003 that he could not see it.", "reference_indexes": [1]},
+        {"snippet": "Photos taken from the space station with long lenses have shown sections of it.", "reference_indexes": [2]}
+      ]
+    }
+  ],
+  "references": [
+    {"index": 0, "title": "Is China's Great Wall Visible from Space?", "link": "https://www.scientificamerican.com/article/is-chinas-great-wall-visible-from-space/", "source": "Scientific American"},
+    {"index": 1, "title": "Live Science", "link": "https://www.livescience.com/", "source": "Live Science"},
+    {"index": 2, "title": "NASA", "link": "https://www.nasa.gov/", "source": "NASA"}
+  ]
+}
