@@ -72,7 +72,8 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("brave", council["council"]["dissenting"])
         answer = next(e["data"]["markdown"] for e in events if e["event"] == "answer")
         self.assertIn("Brave AI, disagrees", answer)
-        self.assertEqual(events[-1]["data"]["searches"], 6)  # google, ai_overview token, ai_mode, copilot, brave, forums
+        # 6 to convene (google, ai_overview token, ai_mode, copilot, brave, forums) + 3 debaters x 2 rounds
+        self.assertEqual(events[-1]["data"]["searches"], 12)
         self.assertIn('<panch id="brave"', llm.prompts[0])
 
     def test_llm_failure_falls_back_to_heuristic(self):

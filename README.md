@@ -1,6 +1,6 @@
 # Panchayat (पंचायत)
 
-**Five AI search engines debate. You get one verdict.**
+**Five AI search engines answer, then debate each other until they agree. You get one verdict.**
 
 Panchayat asks your question to five sources at once (Google AI Overview, Google AI Mode, Bing Copilot, Brave AI and the open web) through [SerpApi](https://serpapi.com). It records what each one claims, measures where they agree and where they disagree, and writes a single cited answer. A side column shows every panch's stance, a claim-by-claim vote, and every source with the panches that cited it.
 
@@ -43,6 +43,20 @@ The clerk and sarpanch never add facts of their own. Agreement scores are comput
 - **Follow-ups** that remember context, **related questions** gathered from the engines, and **"हिंदी में पूछें"**, which re-asks the same question in Hindi so you can see whether the verdict changes. Ten Indian languages are supported.
 - A **library** of past threads, light and dark themes, and a mobile layout where the council is a slide-over drawer.
 
+## The debate
+
+After the five panches answer, the three that are real AI chat engines (Google AI Mode, Bing Copilot, Brave AI) **argue it out, using nothing but SerpApi searches**. An engine only takes a query, so the conversation lives inside the queries:
+
+1. **Round 1, cross-examination.** In a ring, each engine is shown a rival's opening answer: *"… Another AI search engine answered: "<rival's claim>". Is that accurate? Correct anything that is wrong."* Google AI Mode reviews Bing Copilot, Copilot reviews Brave AI, Brave AI reviews AI Mode.
+2. **Round 2+, rebuttal.** Each engine is shown what its rival *now* says and asked whether it agrees.
+3. After every round, each reply gets a stance (**agrees / partly / disagrees**) and a one-line summary. The clerk LLM judges this when a key is set; otherwise transparent phrase rules do (`heuristic_stance()` in [`backend/debate.py`](backend/debate.py)).
+4. When every engine agrees, the panchayat has **consensus** and the debate stops early. Otherwise it stops after `DEBATE_ROUNDS` and names the holdouts.
+5. The sarpanch writes the verdict from the claim ledger **plus the debate transcript**, leading with the position the engines settled on.
+
+The right-hand column shows it live as a group chat: opening answers, each round, who reviewed whom, every stance, the full reply and its sources, and the final *"The panchayat agrees"* card. Turn it off per question with the **Council** mode switch.
+
+**Cost:** one search per debater per round, so at most 6 extra searches with the defaults, cached like everything else.
+
 ## How SerpApi is used
 
 SerpApi is the product: every panch is a SerpApi engine. No SerpApi, no council.
@@ -84,7 +98,7 @@ flowchart LR
   V --> A
 ```
 
-The answer streams as Server-Sent Events: `start → query → panch ×5 (as each arrives) → sources → council → token… → answer → related → done`. Panches run in parallel, and one failing or slow engine never blocks the others (it shows as *Abstained*).
+The answer streams as Server-Sent Events: `start → query → panch ×5 (as each arrives) → sources → media → council → debate_start → debate_round / debate_turn… → debate_end → token… → answer → related → done`. Panches run in parallel, and one failing or slow engine never blocks the others (it shows as *Abstained*).
 
 ```
 backend/
@@ -93,6 +107,7 @@ backend/
   panches.py          one fetcher per panch (SerpApi engines)
   normalize.py        text_blocks / segments / references → markdown + numbered refs
   council.py          sources, claim extraction (LLM + heuristic), agreement scoring
+  debate.py           the engines cross-examine each other through SerpApi until they agree
   credibility.py      transparent domain tiers (official, reference, news, web, community)
   llm.py              Gemini / OpenAI-compatible / Anthropic, JSON + streaming, no SDKs
   prompts.py          clerk, sarpanch and query-prep prompts
@@ -164,6 +179,7 @@ python scripts/warm_cache.py "Is it safe to give paracetamol and ibuprofen toget
 | `PANCHES` | all five | Which panches sit on the council |
 | `CACHE_TTL_HOURS` | `72` | How long SerpApi results are reused |
 | `PANCHAYAT_MOCK` | `0` | `1` = sample data, no SerpApi calls |
+| `DEBATE_ROUNDS` | `2` | Maximum debate rounds (0 turns the debate off, max 4) |
 
 ## Tests
 
@@ -171,7 +187,7 @@ python scripts/warm_cache.py "Is it safe to give paracetamol and ibuprofen toget
 python -m unittest discover -s tests -t .
 ```
 
-Thirty tests cover every normalizer against SerpApi-shaped fixtures, source merging and credibility tiers, the scoring rules (including dissent and abstention), the full streaming pipeline with a fake LLM, the fallback when the LLM fails, the stale `page_token` refresh, and the real HTTP API under uvicorn. They need no network access and spend no credits.
+Forty tests cover the debate (stance rules, query building, consensus, round limits, the LLM referee), every normalizer against SerpApi-shaped fixtures, source merging and credibility tiers, the scoring rules (including dissent and abstention), the full streaming pipeline with a fake LLM, the fallback when the LLM fails, the stale `page_token` refresh, and the real HTTP API under uvicorn. They need no network access and spend no credits.
 
 ## Honest limitations
 

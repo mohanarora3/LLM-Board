@@ -3,7 +3,9 @@
 `convene()` is an async generator of events that the API forwards to the browser
 as Server-Sent Events:
 
-  start → query → panch (×5, as each arrives) → sources → council → token (…) → answer → related → done
+  start → query → panch (×5, as each arrives) → sources → media → council
+        → debate_start → debate_round / debate_turn (…) → debate_end
+        → token (…) → answer → related → done
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ import time
 from typing import Any, AsyncIterator, Callable, Iterator
 
 from . import council as council_mod
+from . import debate as debate_mod
 from . import prompts
 from .config import Settings
 from .llm import LLM, LLMError
@@ -160,7 +163,8 @@ class Panchayat:
 
     # ------------------------------------------------------------------ session
 
-    async def convene(self, question: str, history: list[dict[str, str]] | None = None, lang: str = "auto") -> AsyncIterator[dict[str, Any]]:
+    async def convene(self, question: str, history: list[dict[str, str]] | None = None, lang: str = "auto",
+                      debate: bool = True) -> AsyncIterator[dict[str, Any]]:
         started = time.perf_counter()
         history = history or []
         asked_lang = detect_language(question)
@@ -177,6 +181,7 @@ class Panchayat:
                       "engines": PANCHES[p].engines} for p in self.settings.enabled_panches],
             llm=self.settings.llm_provider if self.llm else "none",
             mock=self.settings.mock,
+            debate=bool(debate and self.settings.debate_rounds),
         )
 
         query = await asyncio.to_thread(self._prepare_query, question, history, lang, asked_lang)
@@ -195,6 +200,12 @@ class Panchayat:
 
         book = council_mod.build_sources(results)
         yield _event("sources", sources=book.sources)
+        images: list[dict[str, Any]] = []
+        for r in results:
+            for img in r.images:
+                if img["thumbnail"] not in {i["thumbnail"] for i in images}:
+                    images.append(img)
+        yield _event("media", images=images[:12])
 
         if not answering:
             message = "None of the panches could answer this question. Try rephrasing it, or check the SerpApi key and credits."
@@ -220,12 +231,26 @@ class Panchayat:
         council = council_mod.score_council(claims, results, book)
         yield _event("council", council=council, method=method, note=note)
 
+        debate_result: debate_mod.DebateResult | None = None
+        if debate and self.settings.debate_rounds:
+            debaters = debate_mod.pick_debaters(answering, self.settings.enabled_panches)
+            if len(debaters) >= 2:
+                yield _event("step", text="The panches are debating")
+                box: list[debate_mod.DebateResult] = []
+                session = debate_mod.Debate(self.client, self.llm, self.settings.debate_rounds, language, locale)
+                async for item in session.run(query, debaters, box):
+                    yield item
+                debate_result = box[0] if box else None
+            else:
+                yield _event("debate_skip", reason="Fewer than two AI engines answered, so there was no one to debate.")
+
         yield _event("step", text="Writing the verdict")
         answer = ""
         if self.llm and method == "llm":
             system = prompts.VERDICT_SYSTEM.format(language=language)
             user = prompts.verdict_user(question, f"{council['headline']} — {council['ruling']} ({council['consensus']}% of key claims agreed)",
-                                        council_mod.ledger_text(council), council_mod.sources_text(book))
+                                        council_mod.ledger_text(council), council_mod.sources_text(book),
+                                        debate_result.transcript() if debate_result else "")
             try:
                 async for piece in _stream_in_thread(lambda: self.llm.stream(system, user)):
                     answer += piece
@@ -236,6 +261,11 @@ class Panchayat:
                     yield _event("token", text="\n\n_(The verdict was cut short by a model error.)_")
         if not answer.strip():
             answer = council_mod.heuristic_verdict(council)
+            if debate_result:
+                extra = debate_mod.debate_markdown(debate_result)
+                if extra:
+                    first, _, rest = answer.partition("\n\n")
+                    answer = f"{first}\n\n{extra}" + (f"\n\n{rest}" if rest else "")
             async for piece in _chunked(answer):
                 yield _event("token", text=piece)
         yield _event("answer", markdown=answer)

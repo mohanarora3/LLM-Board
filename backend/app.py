@@ -70,6 +70,7 @@ def build_app(settings: Settings | None = None, panchayat: Panchayat | None = No
             "searches_this_session": getattr(client, "searches_made", 0),
             "cache_entries": cache.count() if cache else 0,
             "sample_question": SAMPLE_QUESTION if settings.mock else None,
+            "debate_rounds": settings.debate_rounds,
         })
 
     async def suggestions(request: Request) -> JSONResponse:
@@ -90,6 +91,7 @@ def build_app(settings: Settings | None = None, panchayat: Panchayat | None = No
         if panchayat is None:
             return JSONResponse({"error": "SERPAPI_API_KEY is missing. Add it to .env and restart the server."}, status_code=503)
         lang = str(body.get("lang") or "auto")
+        want_debate = body.get("debate", True) is not False
         raw_history = body.get("history") if isinstance(body.get("history"), list) else []
         history = [
             {"question": str(h.get("question", ""))[:500], "answer": str(h.get("answer", ""))[:1500]}
@@ -100,7 +102,7 @@ def build_app(settings: Settings | None = None, panchayat: Panchayat | None = No
         async def events() -> AsyncIterator[str]:
             async with gate():
                 try:
-                    async for item in panchayat.convene(question, history, lang):
+                    async for item in panchayat.convene(question, history, lang, debate=want_debate):
                         yield f"event: {item['event']}\ndata: {json.dumps(item['data'], ensure_ascii=False)}\n\n"
                 except Exception as exc:  # report, don't crash the stream
                     log.exception("council failed")

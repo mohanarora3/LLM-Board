@@ -68,6 +68,7 @@ class PanchResult:
     latency_ms: int = 0
     cached: bool = True
     searches: int = 0  # live (billed) SerpApi searches made for this panch
+    images: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         info = PANCHES[self.id]
@@ -234,10 +235,36 @@ def build_web_answer(google: dict[str, Any], forums: dict[str, Any] | None) -> t
     return "\n\n".join(sections), refs
 
 
+def images_from(google: dict[str, Any], limit: int = 12) -> list[dict[str, Any]]:
+    """Google's inline image results (free: they come with the search we already made)."""
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in google.get("inline_images") or []:
+        if not isinstance(item, dict):
+            continue
+        thumb = item.get("thumbnail") or item.get("original")
+        if not thumb or not str(thumb).startswith(("http://", "https://", "data:image/")) or thumb in seen:
+            continue
+        seen.add(thumb)
+        page = item.get("link") or item.get("source") or ""
+        out.append({
+            "thumbnail": thumb,
+            "original": item.get("original") or thumb,
+            "title": (item.get("title") or "").strip(),
+            "link": page if str(page).startswith("http") else "",
+            "domain": domain_of(page) if str(page).startswith("http") else (item.get("source_name") or ""),
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
 def fetch_web(google: SearchResponse, forums: SearchResponse | None) -> PanchResult:
     responses = [google] + ([forums] if forums else [])
     answer, refs = build_web_answer(google.data, forums.data if forums else None)
-    return _finish("web", answer, refs, _related_from(google.data), responses)
+    result = _finish("web", answer, refs, _related_from(google.data), responses)
+    result.images = images_from(google.data)
+    return result
 
 
 def fetch_forums(client: SearchClient, query: str, locale: Locale) -> SearchResponse | None:

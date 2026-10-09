@@ -53,6 +53,7 @@ class Settings:
     mock: bool
     host: str
     port: int
+    debate_rounds: int = 2  # 0 turns the debate off
 
     @property
     def llm_enabled(self) -> bool:
@@ -109,4 +110,5 @@ def load_settings() -> Settings:
         mock=_bool("PANCHAYAT_MOCK"),
         host=_env("HOST", "127.0.0.1") or "127.0.0.1",
         port=_int("PORT", 8000),
+        debate_rounds=max(0, min(4, _int("DEBATE_ROUNDS", 2))),
     )

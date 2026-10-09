@@ -25,8 +25,13 @@ const state = {
   focusedTurn: null,
   streaming: null,
   openPanches: new Set(),
+  openTurns: new Set(),
   sourceFilter: "all",
+  mode: "debate",
+  tab: "answer",
+  detailsOpen: false,
 };
+const STANCE_WORD = { agrees: "Agrees", partly: "Partly agrees", disagrees: "Disagrees", silent: "No reply" };
 
 // ------------------------------------------------------------------ helpers
 
@@ -60,6 +65,8 @@ async function boot() {
   hydrateIcons();
   $("#modKey").textContent = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl";
   if (store.pref("sidebar") === "collapsed") $("#app").classList.add("collapsed");
+  state.mode = store.pref("mode") === "council" ? "council" : "debate";
+  syncModeUI();
   syncThemeIcon();
   bindChrome();
 
@@ -86,6 +93,20 @@ function bindChrome() {
     store.pref("sidebar", collapsed ? "collapsed" : "open");
   });
   $("#themeToggle").addEventListener("click", toggleTheme);
+  $("#themeToggleTop").addEventListener("click", toggleTheme);
+  $("#sessionsToggle").addEventListener("click", () => {
+    const open = $("#sessionsToggle").getAttribute("aria-expanded") !== "true";
+    $("#sessionsToggle").setAttribute("aria-expanded", String(open));
+    $("#recentThreads").hidden = !open;
+  });
+  $$(".mode-switch .mode, .mode-card").forEach((b) =>
+    b.addEventListener("click", () => {
+      setMode(b.dataset.mode);
+      if (b.classList.contains("mode-card")) $("#homeInput").focus();
+    }),
+  );
+  $$(".tab").forEach((t) => t.addEventListener("click", () => setTab(t.dataset.tab)));
+  bindMic();
   $("#mobileMenu").addEventListener("click", () => openOverlay("menu"));
   $("#scrim").addEventListener("click", closeOverlays);
   $("#councilToggle").addEventListener("click", () => openOverlay("council"));
@@ -144,6 +165,18 @@ function bindChrome() {
   });
 
   $("#councilContent").addEventListener("click", (e) => {
+    const more = e.target.closest("[data-dturn]");
+    if (more) {
+      const key = more.dataset.dturn;
+      state.openTurns.has(key) ? state.openTurns.delete(key) : state.openTurns.add(key);
+      renderCouncil();
+      return;
+    }
+    if (e.target.closest("[data-details]")) {
+      state.detailsOpen = !state.detailsOpen;
+      renderCouncil();
+      return;
+    }
     const row = e.target.closest(".panch-row");
     if (row) {
       const id = row.dataset.panch;
@@ -194,6 +227,7 @@ function syncThemeIcon() {
     ? document.documentElement.dataset.theme === "dark"
     : matchMedia("(prefers-color-scheme: dark)").matches;
   setIcon($("#themeToggle"), dark ? "sun" : "moon");
+  setIcon($("#themeToggleTop"), dark ? "sun" : "moon");
 }
 
 function toggleTheme() {
@@ -275,6 +309,99 @@ async function loadSuggestions() {
   }
 }
 
+// ------------------------------------------------------------------ mode, tabs, voice
+
+function setMode(mode) {
+  state.mode = mode === "council" ? "council" : "debate";
+  store.pref("mode", state.mode);
+  syncModeUI();
+}
+
+function syncModeUI() {
+  $$(".mode-switch .mode").forEach((b) => {
+    const on = b.dataset.mode === state.mode;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-checked", String(on));
+  });
+  $$(".mode-card").forEach((c) => c.classList.toggle("on", c.dataset.mode === state.mode));
+}
+
+function setTab(tab) {
+  state.tab = tab;
+  $$(".tab").forEach((t) => {
+    const on = t.dataset.tab === tab;
+    t.classList.toggle("on", on);
+    t.setAttribute("aria-selected", String(on));
+  });
+  $("#turns").hidden = tab !== "answer";
+  $("#linksPane").hidden = tab !== "links";
+  $("#imagesPane").hidden = tab !== "images";
+  renderPanes();
+  $("#threadScroll").scrollTop = 0;
+}
+
+function focusedTurnObj() {
+  return findTurn(state.focusedTurn) || state.thread?.turns.at(-1) || null;
+}
+
+function renderPanes() {
+  const turn = focusedTurnObj();
+  const sources = turn?.sources || [];
+  const images = turn?.images || [];
+  $("#linksCount").textContent = sources.length ? String(sources.length) : "";
+  $("#imagesCount").textContent = images.length ? String(images.length) : "";
+  if (state.tab === "links") {
+    $("#linksPane").innerHTML = sources.length
+      ? `<div class="pane-head">${turn ? esc(turn.question) : ""}</div><ol class="links">${sources
+          .map((s) => {
+            const by = s.cited_by.map((id) => avatar(panchMeta(id, turn))).join("");
+            return `<li class="link"><a href="${esc(s.link)}" target="_blank" rel="noopener noreferrer">
+              <span class="l-site"><img src="${favicon(s.domain)}" alt="" loading="lazy" onerror="this.remove()"/>${esc(s.domain)}<span class="tier ${s.tier}">${esc(s.tier_label)}</span></span>
+              <span class="l-title">${esc(s.title)}</span>
+              ${s.snippet ? `<span class="l-snip">${esc(s.snippet)}</span>` : ""}
+              <span class="l-by"><span class="avatars">${by}</span>cited by ${s.cited_by.length} panch${s.cited_by.length === 1 ? "" : "es"}</span></a></li>`;
+          })
+          .join("")}</ol>`
+      : `<div class="c-empty">${turn?.status === "loading" ? "Links appear as the panches answer…" : "No links for this answer."}</div>`;
+  }
+  if (state.tab === "images") {
+    $("#imagesPane").innerHTML = images.length
+      ? `<div class="pane-head">${turn ? esc(turn.question) : ""}</div><div class="images">${images
+          .map(
+            (im) => `<a class="img" href="${esc(im.link || im.original)}" target="_blank" rel="noopener noreferrer" title="${esc(im.title)}">
+              <img src="${esc(im.thumbnail)}" alt="${esc(im.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.img').remove()"/>
+              <span class="img-cap">${esc(im.title || im.domain)}</span></a>`,
+          )
+          .join("")}</div>`
+      : `<div class="c-empty">${turn?.status === "loading" ? "Looking for images…" : "No images for this question."}</div>`;
+  }
+}
+
+function bindMic() {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  $$(".mic").forEach((btn) => {
+    if (!Recognition) {
+      btn.hidden = true;
+      return;
+    }
+    btn.addEventListener("click", () => {
+      const input = $("#" + btn.dataset.mic);
+      const rec = new Recognition();
+      const lang = (btn.closest("form").querySelector("select")?.value || "auto");
+      rec.lang = lang === "auto" ? navigator.language || "en-IN" : `${lang}-IN`;
+      rec.interimResults = true;
+      btn.classList.add("live");
+      rec.onresult = (e) => {
+        input.value = [...e.results].map((r) => r[0].transcript).join("");
+        autosize(input);
+      };
+      rec.onend = () => btn.classList.remove("live");
+      rec.onerror = () => btn.classList.remove("live");
+      rec.start();
+    });
+  });
+}
+
 // ------------------------------------------------------------------ routing & library
 
 function showView(name) {
@@ -354,6 +481,7 @@ function renderLibrary() {
 
 function startThread(question, lang) {
   if (state.streaming) return;
+  setTab("answer");
   state.thread = { id: uid(), title: question.slice(0, 120), created: Date.now(), turns: [] };
   state.openPanches.clear();
   renderThread();
@@ -381,12 +509,13 @@ async function ask(question, lang = "auto") {
   const turn = {
     id: uid(), question, lang, status: "loading", order: state.panches, panches: {}, sources: [], council: null,
     method: "", note: "", answer: "", related: [], stats: null, query: "", step: "", error: "",
+    images: [], mode: state.mode, debate: null,
   };
   thread.turns.push(turn);
   $("#turns").insertAdjacentHTML("beforeend", turnShell(turn));
   focusTurn(turn.id);
   renderTurn(turn);
-  $("#threadTitle").textContent = thread.title;
+  document.title = (thread.title) ? `${thread.title} · Panchayat` : "Panchayat";
   requestAnimationFrame(() => $(`#turn-${turn.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
 
   const controller = new AbortController();
@@ -394,7 +523,7 @@ async function ask(question, lang = "auto") {
   setStreamingUI(true);
 
   try {
-    await api.ask({ question, lang, history }, (event, data) => onEvent(turn, event, data), controller.signal);
+    await api.ask({ question, lang, history, debate: turn.mode === "debate" }, (event, data) => onEvent(turn, event, data), controller.signal);
     if (turn.status === "loading") turn.status = turn.answer ? "done" : "error";
     if (turn.status === "error" && !turn.error) turn.error = "The council ended without a verdict.";
   } catch (err) {
@@ -435,6 +564,29 @@ function onEvent(turn, event, data) {
       break;
     case "sources":
       turn.sources = data.sources;
+      renderPanes();
+      break;
+    case "media":
+      turn.images = data.images || [];
+      renderPanes();
+      break;
+    case "debate_start":
+      turn.debate = { debaters: data.debaters, rounds: data.rounds, openings: data.openings, turns: {}, done: {}, current: 0, end: null };
+      break;
+    case "debate_round":
+      if (!turn.debate) break;
+      if (data.status === "started") turn.debate.current = data.round;
+      else turn.debate.done[data.round] = data;
+      break;
+    case "debate_turn":
+      if (!turn.debate) break;
+      turn.debate.turns[`${data.turn.round}:${data.turn.speaker}`] = data.turn;
+      break;
+    case "debate_end":
+      if (turn.debate) turn.debate.end = data;
+      break;
+    case "debate_skip":
+      turn.debate = { skipped: data.reason };
       break;
     case "council":
       turn.council = data.council;
@@ -467,7 +619,7 @@ function onEvent(turn, event, data) {
       break;
   }
   renderTurn(turn);
-  if (state.focusedTurn === turn.id && ["start", "panch", "sources", "council", "done"].includes(event)) renderCouncil();
+  if (state.focusedTurn === turn.id && ["start", "panch", "sources", "council", "done", "debate_start", "debate_round", "debate_turn", "debate_end", "debate_skip", "step"].includes(event)) renderCouncil();
 }
 
 function followScroll() {
@@ -517,7 +669,7 @@ function copyThread() {
 
 function renderThread() {
   const thread = state.thread;
-  $("#threadTitle").textContent = thread?.title || "";
+  document.title = (thread?.title || "") ? `${thread?.title || ""} · Panchayat` : "Panchayat";
   $("#turns").innerHTML = (thread?.turns || []).map(turnShell).join("");
   (thread?.turns || []).forEach(renderTurn);
   focusTurn(state.focusedTurn || thread?.turns.at(-1)?.id);
@@ -525,7 +677,7 @@ function renderThread() {
 
 function turnShell(turn) {
   return `<article class="turn" id="turn-${turn.id}" data-turn="${turn.id}">
-    <h1 class="q">${esc(turn.question)}</h1>
+    <div class="q-row"><h1 class="q">${esc(turn.question)}</h1></div>
     <div data-slot="progress"></div>
     <div data-slot="error"></div>
     <div class="section-label" data-slot="label">${icon("scale")}<span>Answer</span><span data-slot="ruling"></span></div>
@@ -566,9 +718,12 @@ function renderProgress(turn) {
   let headText;
   if (loading) {
     headText = turn.step || (arrived.length < order.length ? `Convening the panchayat · ${arrived.length} of ${order.length} have spoken` : "Weighing the answers");
+    if (turn.debate?.current && !turn.debate.end) headText = `Debating · round ${turn.debate.current} of ${turn.debate.rounds}`;
   } else {
     const s = turn.stats;
-    headText = `Consulted ${answered} of ${order.length} panches` + (s ? ` · ${s.searches} SerpApi search${s.searches === 1 ? "" : "es"} · ${formatSecs(s.elapsed_ms)}` : "");
+    const d = turn.debate?.end;
+    const verb = d ? `Debated ${d.rounds_used} round${d.rounds_used === 1 ? "" : "s"}${d.consensus ? " · consensus" : ""}` : "Researched";
+    headText = `${verb} · ${answered} of ${order.length} panches` + (s ? ` · ${s.searches} SerpApi search${s.searches === 1 ? "" : "es"} · ${formatSecs(s.elapsed_ms)}` : "");
   }
 
   const rows = order
@@ -637,7 +792,7 @@ function renderActions(turn) {
   box.innerHTML = `<button class="ghost-btn" data-action="copy">${icon("copy")}<span>Copy</span></button>
     <button class="ghost-btn" data-action="lang" data-lang="${other.code}">${icon("languages")}<span>${other.label}</span></button>
     <button class="ghost-btn" data-action="retry">${icon("refresh")}<span>Ask again</span></button>
-    <button class="ghost-btn council-toggle" data-action="council">${icon("users")}<span>Council</span></button>
+    <button class="ghost-btn debate-toggle" data-action="council">${icon("messages")}<span>Debate</span></button>
     ${s ? `<span class="stats">${s.cached_panches ? `${s.cached_panches} from cache · ` : ""}${s.searches} searches · ${formatSecs(s.elapsed_ms)}</span>` : ""}`;
 }
 
@@ -661,6 +816,7 @@ function focusTurn(id) {
   state.focusedTurn = id;
   $$(".turn").forEach((el) => el.classList.toggle("focused", el.dataset.turn === id));
   renderCouncil();
+  renderPanes();
 }
 
 // ------------------------------------------------------------------ council column
@@ -669,12 +825,87 @@ function renderCouncil() {
   const host = $("#councilContent");
   const turn = findTurn(state.focusedTurn);
   if (!turn) {
-    host.innerHTML = `<div class="c-empty">Ask a question to convene the council.<br/>Every panch's stance and source will appear here.</div>`;
+    host.innerHTML = `<div class="c-empty">Ask a question to convene the council.<br/>The panches' debate will appear here.</div>`;
     return;
   }
   const c = turn.council;
   const order = turn.order || state.panches;
-  host.innerHTML = [verdictCard(turn, c), panchSection(turn, c, order), claimsSection(turn, c, order), sourcesSection(turn)].join("");
+  const details = [verdictCard(turn, c), panchSection(turn, c, order), claimsSection(turn, c, order)].join("");
+  const hasDebate = turn.debate && !turn.debate.skipped;
+  host.innerHTML = debateSection(turn) + (hasDebate
+    ? `<section class="c-section details ${state.detailsOpen ? "open" : ""}"><button class="details-head" data-details type="button">
+        ${icon("scale")}<span>Council details</span><span class="count">${c ? esc(c.headline) : ""}</span>${icon("chevron-down", "chev")}</button>
+        <div class="details-body">${details}</div></section>`
+    : details);
+  const live = host.querySelector(".typing:last-of-type, .d-end");
+  if (turn.status === "loading" && live) live.scrollIntoView({ block: "nearest" });
+}
+
+const STANCE_ICON = { agrees: "✓", partly: "~", disagrees: "✕", silent: "…" };
+
+function debateSection(turn) {
+  const d = turn.debate;
+  if (!d) {
+    if (turn.mode === "council") return `<div class="d-off">${icon("info")}<span>Council mode: the panches answered independently, without debating. Switch to <b>Debate</b> to make them cross-examine each other.</span></div>`;
+    if (turn.status !== "loading") return "";
+    return `<section class="debate"><div class="d-head">${icon("messages")}<span class="d-title">The debate</span><span class="d-state">waiting for answers</span></div>
+      <div class="typing">${icon("users")}<span>The panches are answering. The debate starts when they're done.</span><i></i><i></i><i></i></div></section>`;
+  }
+  if (d.skipped) return `<div class="d-off">${icon("info")}<span>${esc(d.skipped)}</span></div>`;
+  const meta = (id) => d.debaters.find((x) => x.id === id) || panchMeta(id, turn);
+  const name = (id) => esc(meta(id).name);
+  const state_ = d.end ? (d.end.consensus ? `<span class="d-state ok">Consensus · round ${d.end.rounds_used}</span>` : `<span class="d-state warn">No full consensus</span>`)
+    : `<span class="d-state live"><span class="pulse"></span>Round ${d.current || 1} of ${d.rounds}</span>`;
+  const parts = [`<div class="d-head">${icon("messages")}<span class="d-title">The debate</span>
+    <span class="avatars">${d.debaters.map((p) => avatar(p)).join("")}</span>${state_}</div>`];
+
+  parts.push(`<div class="d-round"><span>Opening answers</span></div>`);
+  for (const o of d.openings) {
+    parts.push(`<div class="msg">${avatar(meta(o.panch), "lg")}<div class="bubble"><div class="b-head"><b>${name(o.panch)}</b></div>
+      <div class="b-text">${esc(o.text)}</div></div></div>`);
+  }
+
+  const lastRound = d.end ? d.end.rounds_used : d.current;
+  for (let r = 1; r <= lastRound; r++) {
+    parts.push(`<div class="d-round"><span>Round ${r} · ${r === 1 ? "Cross-examination" : "Rebuttal"}</span></div>`);
+    for (const p of d.debaters) {
+      const t = d.turns[`${r}:${p.id}`];
+      if (!t) {
+        if (!d.done[r]) parts.push(`<div class="typing">${avatar(p)}<span>${esc(p.name)} is reading a rival's answer</span><i></i><i></i><i></i></div>`);
+        continue;
+      }
+      const key = `${turn.id}:${r}:${p.id}`;
+      const open = state.openTurns.has(key);
+      const stance = t.status === "silent" ? "silent" : t.stance;
+      const full = open && t.reply
+        ? `<div class="b-full prose">${renderMarkdown(t.reply)}</div>${t.references?.length ? `<div class="b-refs">${t.references.map((ref) => `<a href="${esc(ref.link)}" target="_blank" rel="noopener noreferrer"><img src="${favicon(ref.domain)}" alt="" onerror="this.remove()"/>${esc(shortSite(ref.domain))}</a>`).join("")}</div>` : ""}
+           <div class="b-meta">Searched: “${esc(t.query)}” · ${formatSecs(t.latency_ms)}${t.cached ? " · cached" : ""}</div>`
+        : "";
+      parts.push(`<div class="msg ${stance}">${avatar(p, "lg")}<div class="bubble">
+        <div class="b-head"><b>${name(t.speaker)}</b><span class="to">${icon("arrow-right")}${name(t.rival)}</span>
+          <span class="stance-chip ${stance}">${STANCE_ICON[stance] || ""} ${esc(STANCE_WORD[stance] || stance)}${t.judged ? "" : turn.status === "loading" && turn.llm !== "none" ? " ·" : ""}</span></div>
+        <div class="b-quote">“${esc(t.quote)}”</div>
+        <div class="b-text">${t.status === "silent" ? `<span class="muted">${esc(t.note || "Did not reply this round.")}</span>` : esc(t.summary)}</div>
+        ${full}
+        ${t.reply ? `<button class="b-more" type="button" data-dturn="${key}">${open ? "Hide full reply" : "Full reply"}</button>` : ""}
+      </div></div>`);
+    }
+    const done = d.done[r];
+    if (done) {
+      parts.push(`<div class="d-tally ${done.consensus ? "ok" : ""}">${done.consensus ? icon("check") : icon("scale")}
+        <span>${done.agree} of ${done.spoke} agree${done.consensus ? " · consensus reached" : r < d.rounds && !d.end ? " · another round" : ""}</span></div>`);
+    }
+  }
+
+  if (d.end) {
+    const endorsed = (d.end.endorsed_by || []).map((id) => avatar(meta(id))).join("");
+    const hold = (d.end.holdouts || []).map((id) => name(id)).join(", ");
+    parts.push(`<div class="d-end ${d.end.consensus ? "ok" : "warn"}">
+      <div class="e-head">${d.end.consensus ? icon("check") : icon("alert")}<b>${d.end.consensus ? "The panchayat agrees" : "The panchayat is still split"}</b></div>
+      ${d.end.resolution ? `<div class="e-text">${esc(d.end.resolution)}</div>` : ""}
+      <div class="e-meta">${endorsed ? `<span class="avatars">${endorsed}</span>` : ""}${d.end.consensus ? `Settled in ${d.end.rounds_used} round${d.end.rounds_used === 1 ? "" : "s"}` : hold ? `Still disagreeing: ${hold}` : "Agreement with caveats"}</div></div>`);
+  }
+  return `<section class="debate">${parts.join("")}</section>`;
 }
 
 function verdictCard(turn, c) {

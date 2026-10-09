@@ -1,5 +1,7 @@
 {
-  "search_metadata": {"status": "Success"},
+  "search_metadata": {
+    "status": "Success"
+  },
   "ai_overview": {
     "page_token": "SAMPLE_PAGE_TOKEN",
     "serpapi_link": "https://serpapi.com/search.json?engine=google_ai_overview&page_token=SAMPLE_PAGE_TOKEN"
@@ -51,6 +53,29 @@
       "snippet": "No. From the Moon, about 384,000 km away, no individual human-made structure is visible to the naked eye.",
       "title": "Great Wall of China - Wikipedia",
       "link": "https://en.wikipedia.org/wiki/Great_Wall_of_China"
+    }
+  ],
+  "inline_images": [
+    {
+      "title": "Great Wall of China at Jinshanling",
+      "thumbnail": "https://commons.wikimedia.org/wiki/Special:FilePath/The_Great_Wall_of_China_at_Jinshanling-edit.jpg?width=480",
+      "original": "https://commons.wikimedia.org/wiki/Special:FilePath/The_Great_Wall_of_China_at_Jinshanling-edit.jpg",
+      "link": "https://commons.wikimedia.org/wiki/File:The_Great_Wall_of_China_at_Jinshanling-edit.jpg",
+      "source": "https://commons.wikimedia.org/"
+    },
+    {
+      "title": "Great Wall of China (Mutianyu)",
+      "thumbnail": "https://commons.wikimedia.org/wiki/Special:FilePath/GreatWallofChina-Mutianyu.jpg?width=480",
+      "original": "https://commons.wikimedia.org/wiki/Special:FilePath/GreatWallofChina-Mutianyu.jpg",
+      "link": "https://commons.wikimedia.org/wiki/File:GreatWallofChina-Mutianyu.jpg",
+      "source": "https://commons.wikimedia.org/"
+    },
+    {
+      "title": "Great Wall at Badaling",
+      "thumbnail": "https://commons.wikimedia.org/wiki/Special:FilePath/Great_Wall_of_China_July_2006.JPG?width=480",
+      "original": "https://commons.wikimedia.org/wiki/Special:FilePath/Great_Wall_of_China_July_2006.JPG",
+      "link": "https://commons.wikimedia.org/wiki/File:Great_Wall_of_China_July_2006.JPG",
+      "source": "https://commons.wikimedia.org/"
     }
   ]
 }

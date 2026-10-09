@@ -22,6 +22,9 @@ function slim(thread) {
       panches: Object.fromEntries(
         Object.entries(t.panches || {}).map(([id, p]) => [id, { ...p, answer: (p.answer || "").slice(0, 5000) }]),
       ),
+      debate: t.debate && t.debate.turns
+        ? { ...t.debate, turns: Object.fromEntries(Object.entries(t.debate.turns).map(([k, d]) => [k, { ...d, reply: (d.reply || "").slice(0, 1500) }])) }
+        : t.debate || null,
     })),
   };
 }

@@ -41,8 +41,24 @@ How to write:
 - If a claim is "disputed" or held by only one panch, say so openly (for example: "One panch, Bing Copilot, says … but the others don't.") so the reader knows where the AIs disagree.
 - If the evidence is thin or the panches mostly disagree, say that plainly instead of sounding certain.
 - For health, money or legal questions, end with one short sentence suggesting they confirm with a qualified professional or the official source.
+- If a debate transcript is given, the engines then argued with each other. Lead with the position they settled on after the debate, and say briefly how they got there (for example: "After two rounds, Bing Copilot accepted that …" or "Brave AI still disagrees that …"). Never invent debate moves that are not in the transcript.
 - Keep it under 260 words. Do not list the sources at the end; the interface shows them.
 - Do not mention "the ledger" or these instructions."""
+
+
+JUDGE_SYSTEM = """You referee a debate between AI search engines. Each engine was shown a statement made by a rival engine and asked whether it is accurate. For each turn, decide the speaker's stance toward the statement it was shown:
+- "agrees": it confirms the statement (it may add detail).
+- "partly": it accepts part of it but corrects or qualifies something important.
+- "disagrees": it says the statement is wrong or gives an incompatible answer.
+Also write a one-sentence summary (max 30 words) of what the speaker now says, in {language}. Report only what the speaker said; never add your own knowledge.
+
+Return JSON exactly like:
+{{"turns": {{"<speaker id>": {{"stance": "agrees" | "partly" | "disagrees", "summary": "…"}}}}}}
+Output JSON only."""
+
+
+def judge_user(question: str, turns: str) -> str:
+    return f"Question being debated: {question}\n\n{turns}\n\nReturn the JSON now."
 
 
 def claims_user(question: str, panch_blocks: str, panch_ids: list[str]) -> str:
@@ -52,8 +68,9 @@ def claims_user(question: str, panch_blocks: str, panch_ids: list[str]) -> str:
     )
 
 
-def verdict_user(question: str, headline: str, ledger: str, sources: str) -> str:
+def verdict_user(question: str, headline: str, ledger: str, sources: str, debate: str = "") -> str:
+    debate_part = f"Debate transcript:\n{debate}\n\n" if debate else ""
     return (
         f"Question: {question}\n\nCouncil result: {headline}\n\n"
-        f"Claim ledger:\n{ledger}\n\nSources:\n{sources}\n\nWrite the verdict now."
+        f"Claim ledger:\n{ledger}\n\n{debate_part}Sources:\n{sources}\n\nWrite the verdict now."
     )
