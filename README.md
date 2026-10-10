@@ -1,185 +1,202 @@
-# Panchayat (पंचायत)
+<div align="center">
 
-**Five AI search engines answer, then debate each other until they agree. You get one verdict.**
+![LLM Council](docs/banner.png)
 
-Panchayat asks your question to five sources at once (Google AI Overview, Google AI Mode, Bing Copilot, Brave AI and the open web) through [SerpApi](https://serpapi.com). It records what each one claims, measures where they agree and where they disagree, and writes a single cited answer. A side column shows every panch's stance, a claim-by-claim vote, and every source with the panches that cited it.
+# LLM Council · पंचायत
 
-![Panchayat answer view with the council column](docs/screenshots/desktop.png)
-<sub>Screenshot taken in sample mode (bundled data). Run it with your own keys for live answers.</sub>
+**Five AI search engines answer your question, cross-examine each other through SerpApi, and hand you one cited verdict, with every agreement and every dissent shown.**
+
+![SerpApi](https://img.shields.io/badge/powered%20by-SerpApi-20B8CD)
+![Python](https://img.shields.io/badge/python-3.9%2B-3776AB)
+![Gemini](https://img.shields.io/badge/clerk-Gemini-A78BFA)
+![Tests](https://img.shields.io/badge/tests-40%20passing-44C08D)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+
+[The problem](#the-problem) · [How it works](#how-it-works) · [Architecture](#architecture) · [The debate](#the-debate) · [SerpApi usage](#how-serpapi-is-used) · [Quick start](#quick-start)
+
+</div>
+
+![LLM Council answering "Why hasn't the Indian government approved Starlink yet?" with the debate panel](docs/screenshots/live-answer.png)
+<sub>A live run: 4 of 5 panches answered, Google AI Mode and Brave AI debated for 2 rounds and reached consensus, using 10 SerpApi searches.</sub>
 
 ---
 
 ## The problem
 
-People now ask AI about health, money, government schemes and the news. Different AI search engines often give **different answers to the same question**, each one sounding equally sure. Most people only ask one AI, so they never learn that the others disagree, or that a confident claim rests on a single forum post.
+Perplexity for research, Gemini for everyday tasks, Claude for coding: every AI has a reputation. But when a question actually matters (your health, your money, a government decision), **which one do you trust?**
 
-There's been no simple way to see:
+Ask two AI search engines the same question and you often get **two different answers, each sounding completely sure**. Most people ask only one, so they never find out that:
 
-- whether the major AI engines agree on an answer,
-- which specific claims are disputed, and by whom,
-- which sources each AI's claims rest on, and how trustworthy those sources are.
+- another AI disagreed,
+- the confident answer came from an **outdated** article,
+- or it rested on a **single forum post**.
+
+There's been no simple way to see whether AI engines agree, which claims are disputed, and what each claim is based on.
 
 ## The idea
 
-An Indian *panchayat* is a council of five that hears every voice before reaching a decision. Panchayat applies the same idea to AI answers:
+An Indian **panchayat** is a council of five that hears every voice before a decision is made. LLM Council does the same for AI answers:
 
 | Role | Who | What it does |
 |---|---|---|
-| **Panches** | Google AI Overview, Google AI Mode, Bing Copilot, Brave AI, Open web | Each answers the question independently (live, through SerpApi) |
-| **Clerk** | An LLM (Gemini, OpenAI-compatible or Claude), or a no-LLM fallback | Records every claim and each panch's position on it: supports, contradicts or silent |
-| **Sarpanch** | The same LLM | Writes the verdict, using only claims from the ledger, with citations, and says openly where panches disagree |
+| 🧑‍⚖️ **Panches** | Google AI Overview, Google AI Mode, Bing Copilot, Brave AI, Open web | Each answers independently, **live through SerpApi** |
+| 🗣️ **Debaters** | Google AI Mode, Bing Copilot, Brave AI | Cross-examine each other's claims, **through SerpApi queries** |
+| 📝 **Clerk & referee** | Gemini (or any OpenAI-compatible / Claude model) | Records every claim and who supports or contradicts it; judges each debate round |
+| ⚖️ **Sarpanch** | The same model | Writes the verdict **only** from the recorded claims and the debate, with citations |
 
-The clerk and sarpanch never add facts of their own. Agreement scores are computed in plain Python from the ledger, not guessed by a model.
+> **The engines provide the answers. Gemini only records, referees and writes. The agreement score is plain Python.**
 
-## What you see
+---
 
-- **The answer**, Perplexity-style: a direct answer first, then details, with source pills like `wikipedia +2`. Hover a pill to see the source, its credibility tier and which panches cited it.
-- **A ruling badge**, for example *"4 of 5 panches agree · Broad agreement, with dissent"*.
-- **The council column:**
-  - an agreement ring (how strongly the panches back the core answer),
-  - every panch with its stance (*Agrees / Partly agrees / Dissents / Abstained*) and its full original answer, plus the claims it disagreed on,
-  - **claim by claim**: each claim tagged *Strong agreement / Majority / Disputed / Minority view*, with a vote dot per panch,
-  - **sources**, merged across panches, tagged *Official / Reference / News / Web / Community*, each showing who cited it.
-- **Follow-ups** that remember context, **related questions** gathered from the engines, and **"हिंदी में पूछें"**, which re-asks the same question in Hindi so you can see whether the verdict changes. Ten Indian languages are supported.
-- A **library** of past threads, light and dark themes, and a mobile layout where the council is a slide-over drawer.
+## How it works
 
-## The debate
-
-After the five panches answer, the three that are real AI chat engines (Google AI Mode, Bing Copilot, Brave AI) **argue it out, using nothing but SerpApi searches**. An engine only takes a query, so the conversation lives inside the queries:
-
-1. **Round 1, cross-examination.** In a ring, each engine is shown a rival's opening answer: *"… Another AI search engine answered: "<rival's claim>". Is that accurate? Correct anything that is wrong."* Google AI Mode reviews Bing Copilot, Copilot reviews Brave AI, Brave AI reviews AI Mode.
-2. **Round 2+, rebuttal.** Each engine is shown what its rival *now* says and asked whether it agrees.
-3. After every round, each reply gets a stance (**agrees / partly / disagrees**) and a one-line summary. The clerk LLM judges this when a key is set; otherwise transparent phrase rules do (`heuristic_stance()` in [`backend/debate.py`](backend/debate.py)).
-4. When every engine agrees, the panchayat has **consensus** and the debate stops early. Otherwise it stops after `DEBATE_ROUNDS` and names the holdouts.
-5. The sarpanch writes the verdict from the claim ledger **plus the debate transcript**, leading with the position the engines settled on.
-
-The right-hand column shows it live as a group chat: opening answers, each round, who reviewed whom, every stance, the full reply and its sources, and the final *"The panchayat agrees"* card. Turn it off per question with the **Council** mode switch.
-
-**Cost:** one search per debater per round, so at most 6 extra searches with the defaults, cached like everything else.
-
-## How SerpApi is used
-
-SerpApi is the product: every panch is a SerpApi engine. No SerpApi, no council.
-
-| Panch | SerpApi engine(s) | What we take from it |
-|---|---|---|
-| Google AI Overview | `google` → `google_ai_overview` | `ai_overview.text_blocks` and `references`. When Google loads the overview separately, we follow the short-lived `page_token` (and refresh it automatically if it's stale) |
-| Google AI Mode | `google_ai_mode` | `text_blocks` (paragraph, heading, list, table, code), `references`, `reference_indexes`, related questions |
-| Bing Copilot | `bing_copilot` | `header`, `text_blocks`, `references` |
-| Brave AI | `brave_ai_mode` | `text_blocks` with `segments` and per-segment `citations`, `references`, `related_questions` |
-| Open web | `google` + `google_forums` | `answer_box`, `knowledge_graph`, `organic_results`, `related_questions` (People also ask), and forum `answers` (what real people say) |
-
-All five formats are normalized into one shape (markdown plus numbered references, see [`backend/normalize.py`](backend/normalize.py)), so the clerk can compare them fairly and every claim can be traced back to its source.
-
-**Cost:** about **6 SerpApi searches per new question**. One Google search is shared by two panches. Results are cached in SQLite (72 h by default), so repeat questions are free and instant. The free plan's 250 searches/month cover about 40 fresh questions.
-
-Localization: `hl`/`gl` for Google engines and `language`/`country` for Brave, so a question asked in Hindi is searched in Hindi, in India.
+1. **Ask.** Type or speak a question in English or one of 10 Indian languages. Choose **Debate** or **Council** mode.
+2. **Five panches answer** in parallel through SerpApi (about 6 searches).
+3. **The clerk records the claims.** Every claim is logged with each panch's position: supports, contradicts or silent. Python scores the agreement.
+4. **The panches debate** (Debate mode). Each AI engine is shown a rival's claim in a new SerpApi query and asked *"Is that accurate?"* Rounds continue until they agree, up to 2.
+5. **The verdict** streams in with citations, the dissent named openly, and every source one click away.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  U[Browser<br/>Perplexity-style UI] -- POST /api/ask --> A[Starlette API]
-  A -- SSE stream --> U
-  A --> P[Pipeline]
-  P --> Q[Query prep<br/>follow-ups and translation]
-  Q --> G((SerpApi))
-  G --> O[AI Overview]
-  G --> M[AI Mode]
-  G --> C[Copilot]
-  G --> B[Brave AI]
-  G --> W[Open web<br/>Google + Forums]
-  O & M & C & B & W --> N[Normalize]
-  N --> S[Source book<br/>merge, dedupe, credibility]
-  N --> K[Clerk<br/>claims + positions]
-  K --> R[Scoring<br/>pure Python]
-  S --> R
-  R --> V[Sarpanch<br/>streamed, cited verdict]
-  V --> A
-```
+![LLM Council system architecture](docs/architecture.png)
 
-The answer streams as Server-Sent Events: `start → query → panch ×5 (as each arrives) → sources → media → council → debate_start → debate_round / debate_turn… → debate_end → token… → answer → related → done`. Panches run in parallel, and one failing or slow engine never blocks the others (it shows as *Abstained*).
+| Stage | What happens | Built with |
+|---|---|---|
+| **0 · Ask** | Browser sends the question; the server rewrites follow-ups and translates if needed | Starlette, Gemini |
+| **① Opening answers** | One question fans out to five AI search engines **in parallel**; responses cached in SQLite | **SerpApi** (6 engines) |
+| **② Record & score** | Four answer formats normalised into one; sources merged and credibility-tagged; claim ledger; agreement maths | Python, Gemini (clerk) |
+| **③ Debate loop** | Each debater gets a rival's claim **as a new SerpApi query**; Gemini referees; repeat until consensus | **SerpApi**, Gemini (referee) |
+| **④ Verdict** | Answer written only from the ledger and debate transcript; streamed live to the browser | Gemini (sarpanch), Server-Sent Events |
 
-```
-backend/
-  app.py              HTTP API + static frontend (Starlette)
-  pipeline.py         the session: convene → record → score → verdict (async, streaming)
-  panches.py          one fetcher per panch (SerpApi engines)
-  normalize.py        text_blocks / segments / references → markdown + numbered refs
-  council.py          sources, claim extraction (LLM + heuristic), agreement scoring
-  debate.py           the engines cross-examine each other through SerpApi until they agree
-  credibility.py      transparent domain tiers (official, reference, news, web, community)
-  llm.py              Gemini / OpenAI-compatible / Anthropic, JSON + streaming, no SDKs
-  prompts.py          clerk, sarpanch and query-prep prompts
-  serpapi_client.py   SerpApi client with SQLite cache and search counting
-  mock.py, fixtures/  offline sample mode in SerpApi's exact response shapes
-frontend/             no build step: HTML + CSS + ES modules
-scripts/              check_engines.py, warm_cache.py
-tests/                30 unittest tests (normalizers, scoring, pipeline, live HTTP API)
-```
+Everything streams as Server-Sent Events, so you watch it happen:
+`start → query → panch ×5 → sources → media → council → debate_start → debate_turn… → debate_end → token… → answer → related → done`.
+Panches run in parallel, and a slow or failing engine shows as *Abstained* without blocking the others.
+
+---
+
+## The debate
+
+The engines only accept search queries, so **the conversation happens inside the queries**:
+
+1. **Round 1 · cross-examination.** In a ring, each engine is shown a rival's opening answer:
+   *"… Another AI search engine answered: '<rival's claim>'. Is that accurate? Correct anything that is wrong."*
+   Google AI Mode reviews Bing Copilot, Copilot reviews Brave AI, and Brave AI reviews AI Mode.
+2. **Round 2 · rebuttal.** Each engine sees what its rival *now* says and is asked whether it agrees.
+3. **Refereeing.** After each round, every reply gets a stance (**agrees · partly · disagrees**) and a one-line summary from the Gemini referee. Without an LLM, transparent phrase rules decide (`heuristic_stance()` in [`backend/debate.py`](backend/debate.py)).
+4. **Consensus.** When every debater agrees, the debate stops early. Otherwise it ends after `DEBATE_ROUNDS` and names the holdouts.
+5. **Verdict.** The sarpanch leads with the position the engines settled on.
+
+In the screenshot above, Google AI Mode told Brave AI its claim was *"partly accurate but outdated"*. That's exactly the kind of correction you never see when you ask a single AI.
+
+**Cost:** one search per debater per round, cached like everything else.
+
+---
+
+## How SerpApi is used
+
+SerpApi is the backbone: every panch and every debate turn is a SerpApi call. **Without SerpApi, this would need five separate scrapers. With SerpApi, it's one API key.**
+
+| Panch | SerpApi engine(s) | What we use |
+|---|---|---|
+| Google AI Overview | `google` → `google_ai_overview` | `ai_overview.text_blocks`, `references`; follows the short-lived `page_token` and refreshes it automatically if stale |
+| Google AI Mode | `google_ai_mode` | `text_blocks` (paragraph, heading, list, table, code), `references`, `reference_indexes`, related questions |
+| Bing Copilot | `bing_copilot` | `header`, `text_blocks`, `references` |
+| Brave AI | `brave_ai_mode` | `text_blocks` with `segments` and per-segment `citations`, `references`, `related_questions` |
+| Open web | `google` + `google_forums` | `answer_box`, `knowledge_graph`, `organic_results`, People-also-ask, forum `answers`, `inline_images` |
+
+All formats are normalised into one shape (markdown + numbered references, [`backend/normalize.py`](backend/normalize.py)) so claims can be compared fairly and traced to their source. Searches are localised with `hl`/`gl` (Google) and `language`/`country` (Brave).
+
+**Searches per question**
+
+| Mode | SerpApi searches |
+|---|---|
+| Council | ≈ 6 (one Google search is shared by two panches) |
+| Debate | 6 + debaters × rounds, e.g. 6 + 2 × 2 = **10** |
+| Repeat question | **0** (SQLite cache, 72 h) |
+
+---
+
+## What you see
+
+- **Answer tab:** a Perplexity-style verdict with a ruling badge (*"3 of 4 panches agree · Broad agreement, with dissent"*) and cited claims.
+- **The debate panel:** opening answers, each cross-examination (*who reviewed whom* and their stance), and the consensus card.
+- **Council view:** an agreement ring, every panch's stance (*Agrees / Partly / Dissents / Abstained*) with its full original answer, and a claim-by-claim vote.
+- **Links tab:** every source merged across panches, tagged *Official · Reference · News · Web · Community*, showing which panches cited it.
+- **Images tab:** images from the Google results.
+- **Debate / Council switch**, **voice input**, **10 Indian languages**, follow-ups with context, related questions, a saved **library** of sessions, and light and dark themes.
+
+![Links tab: every source with its credibility tier and who cited it](docs/screenshots/live-links.png)
 
 ### How agreement is measured
 
 For each claim, among the panches that answered:
 
-- **Strong agreement**: at least 75% support it and no one contradicts it.
-- **Majority**: more than half support it, and supporters outnumber opponents (a dissent count is shown).
-- **Disputed**: there is contradiction and no clear majority.
-- **Minority view**: said by fewer than half, uncontested (often just an extra detail).
+| Status | Rule |
+|---|---|
+| **Strong agreement** | ≥ 75% support it and nobody contradicts it |
+| **Majority** | More than half support it and supporters outnumber opponents (the dissent count is shown) |
+| **Disputed** | There is contradiction and no clear majority |
+| **Minority view** | Fewer than half say it, and it's uncontested |
 
-Each panch's **stance** comes from how often it sides with the majority on claims it took a position on, weighted by importance (*Agrees* ≥ 75%, *Partly* ≥ 40%, otherwise *Dissents*). The **agreement ring** is the importance-weighted share of panches backing the core claims, net of contradictions. All of this lives in `score_council()` in [`backend/council.py`](backend/council.py) and is covered by tests.
+A panch's stance comes from how often it sides with the majority, weighted by importance (*Agrees* ≥ 75%, *Partly* ≥ 40%, otherwise *Dissents*). All of it is deterministic Python in `score_council()` ([`backend/council.py`](backend/council.py)) and covered by tests.
 
-Without an LLM key, the clerk falls back to clustering similar sentences across panches. It still measures agreement, but it can't detect contradictions, and the UI says so.
+---
 
 ## Quick start
 
-**Requirements:** Python 3.9+ (3.11+ recommended), a [SerpApi key](https://serpapi.com/users/sign_up) (free), and optionally a free [Gemini key](https://aistudio.google.com/apikey) for the clerk.
+**You need:** Python 3.9+ (3.11+ recommended), a free [SerpApi key](https://serpapi.com/users/sign_up) and a free [Gemini key](https://aistudio.google.com/apikey) (optional but recommended).
 
 ```bash
-git clone <your-repo-url> panchayat && cd panchayat
-cp .env.example .env          # add SERPAPI_API_KEY and GEMINI_API_KEY
-./run.sh                      # creates .venv, installs, starts the server
-# open http://127.0.0.1:8000
+git clone https://github.com/mohanarora3/LLM-Board.git && cd LLM-Board
+cp .env.example .env        # then add SERPAPI_API_KEY and GEMINI_API_KEY
+./run.sh                    # creates .venv, installs, starts the server
 ```
 
-Windows (PowerShell): `.\run.ps1`
+Open **http://127.0.0.1:8000**. The bottom-left corner should show *SerpApi: live* and *Clerk: gemini*.
 
-Manual setup:
+Windows (PowerShell): `.\run.ps1` · Manual: `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && python -m backend`
 
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python -m backend
-```
-
-**Try the interface without any keys:** `./run.sh --mock` (or `PANCHAYAT_MOCK=1 python -m backend`). This replays bundled sample data shaped exactly like SerpApi responses, and a banner makes clear it isn't live.
-
-**Check your key against every engine** (about 6 searches):
-
-```bash
-python scripts/check_engines.py "is coffee good for you"
-```
-
-**Before a demo**, pre-run your questions so they're cached and instant:
-
-```bash
-python scripts/warm_cache.py "Is it safe to give paracetamol and ibuprofen together to a child?"
-```
+| Useful commands | |
+|---|---|
+| `./run.sh --mock` | Try the UI with bundled sample data, no keys needed (clearly labelled) |
+| `python scripts/check_engines.py "is coffee good for you"` | Check your key against every SerpApi engine (about 6 searches) |
+| `python scripts/warm_cache.py "your question"` | Pre-run demo questions so they load instantly |
 
 ## Configuration
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `SERPAPI_API_KEY` | (required) | Your SerpApi key |
-| `LLM_PROVIDER` | `auto` | `gemini`, `openai`, `anthropic` or `none`. `auto` uses the first key it finds |
+| `LLM_PROVIDER` | `auto` | `gemini`, `openai`, `anthropic` or `none`; `auto` uses the first key it finds |
 | `GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | (empty) | Key for the clerk |
-| `OPENAI_BASE_URL` | OpenAI | Any OpenAI-compatible server: Groq, OpenRouter, Ollama, LM Studio |
-| `LLM_MODEL` | per provider | e.g. `gemini-2.5-flash`, `gpt-4o-mini`, `llama-3.3-70b-versatile` |
+| `OPENAI_BASE_URL` | OpenAI | Any OpenAI-compatible server (Groq, OpenRouter, Ollama, LM Studio) |
+| `LLM_MODEL` | per provider | e.g. `gemini-2.5-flash` |
+| `DEBATE_ROUNDS` | `2` | Maximum debate rounds (`0` turns debate off, max 4) |
 | `COUNTRY` / `DEFAULT_LANG` | `in` / `en` | Search country and default language |
 | `PANCHES` | all five | Which panches sit on the council |
 | `CACHE_TTL_HOURS` | `72` | How long SerpApi results are reused |
 | `PANCHAYAT_MOCK` | `0` | `1` = sample data, no SerpApi calls |
-| `DEBATE_ROUNDS` | `2` | Maximum debate rounds (0 turns the debate off, max 4) |
+
+## Project structure
+
+```
+backend/
+  app.py              HTTP API + static frontend (Starlette)
+  pipeline.py         the session: convene → record → score → debate → verdict (async, streaming)
+  panches.py          one fetcher per panch (SerpApi engines)
+  debate.py           engines cross-examine each other through SerpApi until they agree
+  normalize.py        text_blocks / segments / references → markdown + numbered refs
+  council.py          sources, claim ledger (LLM + heuristic fallback), agreement scoring
+  credibility.py      transparent domain tiers (official, reference, news, web, community)
+  llm.py              Gemini / OpenAI-compatible / Anthropic: JSON + streaming, no SDKs
+  prompts.py          clerk, referee, sarpanch and query-prep prompts
+  serpapi_client.py   SerpApi client with SQLite cache and search counting
+  mock.py, fixtures/  offline sample mode in SerpApi's exact response shapes
+frontend/             no build step: HTML + CSS + ES modules
+scripts/              check_engines.py, warm_cache.py
+tests/                unittest suite (no network, no credits)
+docs/                 architecture, banner, screenshots, submission notes
+```
 
 ## Tests
 
@@ -187,25 +204,30 @@ python scripts/warm_cache.py "Is it safe to give paracetamol and ibuprofen toget
 python -m unittest discover -s tests -t .
 ```
 
-Forty tests cover the debate (stance rules, query building, consensus, round limits, the LLM referee), every normalizer against SerpApi-shaped fixtures, source merging and credibility tiers, the scoring rules (including dissent and abstention), the full streaming pipeline with a fake LLM, the fallback when the LLM fails, the stale `page_token` refresh, and the real HTTP API under uvicorn. They need no network access and spend no credits.
+The suite covers the debate (stance rules, query building, consensus, round limits, the LLM referee), every normaliser against SerpApi-shaped fixtures, source merging and credibility tiers, the scoring rules (including dissent and abstention), the full streaming pipeline with a fake LLM, the fallback when the LLM fails, the stale `page_token` refresh, and the real HTTP API under uvicorn. No network access and no credits needed.
 
 ## Honest limitations
 
-- The clerk is an LLM. It's constrained to record only what the panches said, and all scoring is deterministic code, but extraction can still be imperfect. The full original answer of every panch is one click away so anyone can check.
-- Agreement is not truth. Five engines can repeat the same mistake. That's why sources are shown with credibility tiers and *who cited what*: agreement that rests on one weak blog is visible as such.
-- Credibility tiers are a simple, transparent domain list ([`backend/credibility.py`](backend/credibility.py)). They're shown as hints and never used to hide a source.
-- Availability of AI answers varies by query and region. When an engine has nothing to say, it's shown as *Abstained*, not counted as disagreement.
+- **Agreement is not truth.** Five engines can repeat the same mistake. That's why every claim shows its sources, their credibility tier and *who cited what*.
+- **The clerk is an LLM.** It's told to record only what the panches said, and all scoring is deterministic code, but extraction can be imperfect. Every panch's full original answer is one click away.
+- **Debates take time.** Live runs make several SerpApi calls per round (the Starlink example took about 2 minutes). Cached questions return instantly.
+- **Credibility tiers are a simple domain list** ([`backend/credibility.py`](backend/credibility.py)). They're shown as hints and never used to hide a source.
+- **AI answers vary by query and region.** An engine with nothing to say shows as *Abstained*, not as disagreement.
 
 ## Roadmap
 
-- Side-by-side **language gap** view (same question in English and Hindi, claim by claim).
-- Add DuckDuckGo Search Assist and Naver AI Briefing as optional panches.
-- Shareable verdict links and a browser extension for fact-checking a highlighted claim.
+- Side-by-side **language gap** view: the same question in English and Hindi, claim by claim.
+- More panches: DuckDuckGo Search Assist, Naver AI Briefing.
+- Shareable verdict links and a browser extension to fact-check a highlighted claim.
 
 ## Built for
 
 The **SerpApi India Hackathon 2026**, *Knowledge & Public Interest* track. AI-assisted development disclosure: see [`docs/SUBMISSION.md`](docs/SUBMISSION.md).
 
-## License
+<div align="center">
 
-MIT
+**Don't trust one AI. Let five debate.**
+
+MIT License
+
+</div>
