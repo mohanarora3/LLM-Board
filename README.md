@@ -162,20 +162,7 @@ Windows (PowerShell): `.\run.ps1` · Manual: `python3 -m venv .venv && source .v
 | `python scripts/check_engines.py "is coffee good for you"` | Check your key against every SerpApi engine (about 6 searches) |
 | `python scripts/warm_cache.py "your question"` | Pre-run demo questions so they load instantly |
 
-## Configuration
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `SERPAPI_API_KEY` | (required) | Your SerpApi key |
-| `LLM_PROVIDER` | `auto` | `gemini`, `openai`, `anthropic` or `none`; `auto` uses the first key it finds |
-| `GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | (empty) | Key for the clerk |
-| `OPENAI_BASE_URL` | OpenAI | Any OpenAI-compatible server (Groq, OpenRouter, Ollama, LM Studio) |
-| `LLM_MODEL` | per provider | e.g. `gemini-2.5-flash` |
-| `DEBATE_ROUNDS` | `2` | Maximum debate rounds (`0` turns debate off, max 4) |
-| `COUNTRY` / `DEFAULT_LANG` | `in` / `en` | Search country and default language |
-| `PANCHES` | all five | Which panches sit on the council |
-| `CACHE_TTL_HOURS` | `72` | How long SerpApi results are reused |
-| `PANCHAYAT_MOCK` | `0` | `1` = sample data, no SerpApi calls |
 
 ## Project structure
 
@@ -198,31 +185,11 @@ tests/                unittest suite (no network, no credits)
 docs/                 architecture, banner, screenshots, submission notes
 ```
 
-## Tests
 
-```bash
-python -m unittest discover -s tests -t .
-```
 
 The suite covers the debate (stance rules, query building, consensus, round limits, the LLM referee), every normaliser against SerpApi-shaped fixtures, source merging and credibility tiers, the scoring rules (including dissent and abstention), the full streaming pipeline with a fake LLM, the fallback when the LLM fails, the stale `page_token` refresh, and the real HTTP API under uvicorn. No network access and no credits needed.
 
-## Honest limitations
 
-- **Agreement is not truth.** Five engines can repeat the same mistake. That's why every claim shows its sources, their credibility tier and *who cited what*.
-- **The clerk is an LLM.** It's told to record only what the panches said, and all scoring is deterministic code, but extraction can be imperfect. Every panch's full original answer is one click away.
-- **Debates take time.** Live runs make several SerpApi calls per round (the Starlink example took about 2 minutes). Cached questions return instantly.
-- **Credibility tiers are a simple domain list** ([`backend/credibility.py`](backend/credibility.py)). They're shown as hints and never used to hide a source.
-- **AI answers vary by query and region.** An engine with nothing to say shows as *Abstained*, not as disagreement.
-
-## Roadmap
-
-- Side-by-side **language gap** view: the same question in English and Hindi, claim by claim.
-- More panches: DuckDuckGo Search Assist, Naver AI Briefing.
-- Shareable verdict links and a browser extension to fact-check a highlighted claim.
-
-## Built for
-
-The **SerpApi India Hackathon 2026**, *Knowledge & Public Interest* track. AI-assisted development disclosure: see [`docs/SUBMISSION.md`](docs/SUBMISSION.md).
 
 <div align="center">
 
